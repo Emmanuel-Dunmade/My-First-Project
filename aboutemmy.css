@@ -1,0 +1,100 @@
+body{
+    background-image: url(emmaspng.jpg);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    width: 100%;
+}
+
+.image .about-image{
+    height:500px;
+}
+
+.text{
+    text-align: right;
+    font-family: 'Press Start 2P', cursive;
+    color: goldenrod;
+    font-size: 0.6rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    margin-top: 10%;
+  
+}
+.row{
+    display:flex;
+    justify-content:space-around;
+    align-items: center;
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+.box{
+    padding: 25px;
+    width: 400px;
+    border-radius: 0.2cm ;
+    border-width: 8cm;
+    border-color: whitesmoke;
+    height: 400px;
+    background-color:rgba(256, 256, 256, 0.5);
+    color: black;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 200;
+    text-transform: auto ;
+    word-spacing:0.005cm;
+    justify-content: center;
+    box-shadow: 15px;
+}
+.box2{
+    padding: 25px;
+    width: 400px;
+    border-radius: 0.2cm ;
+    border-width: 8cm;
+    border-color: whitesmoke;
+    height: 400px;
+    background-color:rgba(256, 256, 256, 0.5);
+    color: black;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 200;
+    text-transform: auto ;
+    word-spacing:0.005cm;
+
+}
+
+
+.image2 .about-image2{
+    height:500px;
+
+}
+.row2{
+    display:flex;
+    justify-content:space-around;
+    align-items: left;
+    margin-top: 70px;
+    width: 100%;
+}
+button{
+    width: 5cm;
+    height: 2.5cm;
+    font-family:'Press Start 2P', cursive; 
+    border-radius: 10px;
+    text-shadow: 10px;
+    background-color:goldenrod;
+    box-shadow: inset 0 0 0 0 rosybrown;
+    transition: ease-out 0.3s;
+    font-size: 1.4rem;
+    outline: none;
+}
+button:hover {
+    box-shadow: inset 440px 0 0 0 indianred;
+    cursor: pointer;
+    color: white
+}
+a{
+    text-decoration:none;
+    color: black;
+}
+a:hover{
+    color: white;
+}

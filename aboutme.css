@@ -1,0 +1,47 @@
+body {
+    background-image: url(emmaspng.jpg);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+.text{
+    text-align: center;
+    font-family: 'Press Start 2P', cursive;
+    color: goldenrod;
+    font-size: 3.4rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-decoration: underline;
+}
+
+.text2{
+    text-align: left;
+    font-family: 'Press Start 2P', cursive;
+    color: goldenrod;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: auto ;
+    word-spacing:0.003cm;
+    text-align: left;
+}
+.row{
+    display:flex;
+    justify-content:space-evenly;
+    margin-bottom: 50px;
+}
+
+.box{
+    width: 400px;
+    border-radius: 0.2cm ;
+    border-width: 8cm;
+    border-color: whitesmoke;
+    height: 400px;
+    background-color:goldenrod;
+    color: black;
+    font-family: 'Press Start 2P', cursive;
+    color: black;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: auto ;
+    word-spacing:0.005cm;
+}
