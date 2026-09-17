@@ -9,6 +9,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      rodeo-iad.amazon.com
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/Emmanuel-Dunmade/My-First-Project/master/rodeo-cpt-tracker.user.js
+// @downloadURL  https://raw.githubusercontent.com/Emmanuel-Dunmade/My-First-Project/master/rodeo-cpt-tracker.user.js
 // ==/UserScript==
 
 (function () {
