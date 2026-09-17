@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rodeo CPT Tracker - MQJ4
 // @namespace    rodeo-iad.amazon.com
-// @version      1.40.0
+// @version      1.41.0
 // @description  Auto-captures work pool values at every CPT. Floating panel on Rodeo.
 // @match        *://rodeo-iad.amazon.com/*
 // @grant        GM_setValue
@@ -80,9 +80,6 @@ const ALL_POOLS    = Object.values(POOL_GROUPS).flat().filter(function(p){ retur
 const SORTED_POOLS = ALL_POOLS.slice().sort(function(a,b){ return b.length - a.length; });
 const MONTHS       = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-let latestData     = null;
-let latestUrl      = null;
-let lastDataAge    = 0;
 let histSelectMode = false;
 
 // Drag state: set true during a drag so badge onclick doesn't also toggle panel.
@@ -214,42 +211,9 @@ function saveCaptures(list) {
   GM_setValue(capturesKey(), JSON.stringify(list.slice(0, 500)));
 }
 
-// =============================================================================
-// NETWORK INTERCEPT
-// =============================================================================
-
-function injectInterceptor() {
-  var code = '(function(){' +
-    'if(window.__cptActive)return;window.__cptActive=true;' +
-    'function emit(u,d){window.dispatchEvent(new CustomEvent("__cpt__",{detail:{u:u,d:d}}));}' +
-    'function ok(u){if(!u)return false;' +
-      'if(/\\.(js|css|png|jpg|gif|svg|woff|ico|map)(\\?|$)/.test(u))return false;' +
-      'return u.includes("rodeo-iad")||u.includes("/api/")||u.includes("ExSD")||u.includes("workPool");}' +
-    'var of=window.fetch;' +
-    'window.fetch=function(){var a=arguments;return of.apply(this,a).then(function(r){' +
-      'try{var u=typeof a[0]==="string"?a[0]:(a[0]&&a[0].url||"");' +
-      'if(ok(u))r.clone().json().then(function(d){emit(u,d);}).catch(function(){});}catch(e){}' +
-      'return r;});};' +
-    'var oo=XMLHttpRequest.prototype.open,os=XMLHttpRequest.prototype.send;' +
-    'XMLHttpRequest.prototype.open=function(m,u){this._u=u;return oo.apply(this,arguments);};' +
-    'XMLHttpRequest.prototype.send=function(){var x=this;' +
-      'x.addEventListener("load",function(){if(ok(x._u)){try{emit(x._u,JSON.parse(x.responseText));}catch(e){}}});' +
-      'return os.apply(this,arguments);};' +
-  '})();';
-  var s = document.createElement('script');
-  s.textContent = code;
-  document.documentElement.appendChild(s);
-  s.remove();
-}
-
-injectInterceptor();
-
-window.addEventListener('__cpt__', function(e) {
-  latestData  = e.detail.d;
-  latestUrl   = e.detail.u;
-  lastDataAge = Date.now();
-  nudgeStatus('Rodeo data ready — capture armed.');
-});
+// Network intercept removed (v1.41.0) — was patching window.fetch and XHR
+// prototype in page world, conflicting with 1DC CaseView script.
+// Named CPT auto-captures always use DOM scan. Manual captures fall back to GM_xmlhttpRequest.
 
 // =============================================================================
 // CPT SCHEDULER
@@ -274,19 +238,13 @@ setInterval(function() {
 // CAPTURE
 // FIX v1.11: Named CPT captures always use DOM scan so they read the specific
 // CPT column from the table, not the aggregated JSON total.
-// Manual captures may still use latestData (JSON) since they target Total.
+// Manual captures fall back to GM_xmlhttpRequest (no page-world fetch/XHR patching).
 // =============================================================================
 
 function captureAndSave(cptLabel, source) {
   setStatus('Capturing\u2026');
   var isNamedCpt = CPT_TIMES.includes(cptLabel);
 
-  // For named CPTs, skip latestData entirely — the JSON has no per-column
-  // breakdown, so we must read the DOM to get the right CPT column value.
-  if (!isNamedCpt && latestData && Date.now() - lastDataAge < 180000) {
-    doSave(cptLabel, source, latestData);
-    return;
-  }
 
   setStatus('Scanning Rodeo table\u2026');
   var domData = scanDOM(cptLabel);
@@ -305,9 +263,6 @@ function captureAndSave(cptLabel, source) {
     ];
     tryGMRequest(attempts, 0, function(data, usedUrl) {
       if (data) {
-        latestData  = data;
-        latestUrl   = usedUrl;
-        lastDataAge = Date.now();
         doSave(cptLabel, source, data);
         return;
       }
@@ -1569,8 +1524,7 @@ function buildPanel() {
   setInterval(catchupMissedCpts, 5 * 60 * 1000); // re-check every 5 min for any missed CPTs
   setInterval(function() { checkAndShowAlerts(); refreshOverviewIfVisible(); }, 60000); // refresh risk every min
   setTimeout(function() {
-    if (!latestData) setStatus('Waiting for data \u2014 try Capture Now.');
-    else nudgeStatus('Rodeo data ready \u2014 capture armed.');
+    nudgeStatus('Ready \u2014 captures read from DOM.');
   }, 3000);
   initDrag(); // enable drag-to-reposition
 }
