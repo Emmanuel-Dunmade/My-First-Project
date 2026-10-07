@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rodeo CPT Tracker - MQJ4
 // @namespace    rodeo-iad.amazon.com
-// @version      1.41.0
+// @version      1.42.1
 // @description  Auto-captures work pool values at every CPT. Floating panel on Rodeo.
 // @match        *://rodeo-iad.amazon.com/*
 // @grant        GM_setValue
@@ -31,12 +31,14 @@ const CPT_SHIFT_MINS   = [180, 240, 360, 420, 480, 540, 600, 660, 960, 1140, 138
 
 // Each display pool lists every Rodeo sub-pool section that contributes to it.
 // scanDOM finds each sub-pool heading in the DOM and sums their Total-row values.
-// Late Assign = PickingNotYetPickedNotPrioritized (standalone LateAssign never renders).
+// Late Assign process-path rows live inside the PickingNotYetPicked section table.
+// Read them directly via row: scan (same method as row:Total for Grand Total).
+// The PNYP subtraction below removes them from the PNYP total automatically.
 const POOL_GROUPS = {
   'Grand Total'            : ['row:Total'],
   'Pending Inventory'      : ['PendingInventoryBinding'],
   'Ready To Pick'          : ['ReadyToPick'],
-  'Late Assign'            : ['section:PickingNotYetPicked:PPLateAssignCR', 'section:PickingNotYetPicked:PPLateAssignOP'],
+  'Late Assign'            : ['row:PPLateAssignCR', 'row:PPLateAssignOP'],
   'Picking Not Yet Picked' : ['PickingNotYetPicked'],
   'Picking Picked'         : ['PickingPicked', 'PickingPickedRouting'],
   'In Progress'            : ['PickingPickedInProgress'],
@@ -592,8 +594,18 @@ function scanDOM(cptLabel) {
         var sRow     = sParts[2];
         for (var si = 0; si < allElements.length; si++) {
           var sel = allElements[si];
-          if (sel.textContent.trim().toLowerCase() !== sSection) continue;
-          if (sel.children.length > 2) continue;
+          var selSecTxt = sel.textContent.trim().toLowerCase();
+          if (selSecTxt !== sSection) {
+            // TH fallback: 1DC CaseView injects child elements into section headings,
+            // inflating textContent. Match direct text nodes only for TH.
+            if (sel.tagName !== 'TH') continue;
+            var ownTxtSec = '';
+            for (var tniSec = 0; tniSec < sel.childNodes.length; tniSec++) {
+              if (sel.childNodes[tniSec].nodeType === 3) ownTxtSec += sel.childNodes[tniSec].nodeValue;
+            }
+            if (ownTxtSec.trim().toLowerCase() !== sSection) continue;
+          }
+          if (sel.tagName !== 'TH' && sel.children.length > 2) continue;
           if (sel.closest && sel.closest('#cpt-root')) continue;
           if (sel.closest && sel.closest('form')) continue;
           var rawStbl  = findTableAfter(sel) || findTableOf(sel);
@@ -857,8 +869,16 @@ function buildDebugReport() {
         var secFound = false;
         for (var si = 0; si < allEls.length; si++) {
           var sel = allEls[si];
-          if (sel.textContent.trim().toLowerCase() !== sSection) continue;
-          if (sel.children.length > 2) continue;
+          var selSecTxt2 = sel.textContent.trim().toLowerCase();
+          if (selSecTxt2 !== sSection) {
+            if (sel.tagName !== 'TH') continue;
+            var ownTxtSec2 = '';
+            for (var tniSec2 = 0; tniSec2 < sel.childNodes.length; tniSec2++) {
+              if (sel.childNodes[tniSec2].nodeType === 3) ownTxtSec2 += sel.childNodes[tniSec2].nodeValue;
+            }
+            if (ownTxtSec2.trim().toLowerCase() !== sSection) continue;
+          }
+          if (sel.tagName !== 'TH' && sel.children.length > 2) continue;
           if (sel.closest && sel.closest('#cpt-root')) continue;
           if (sel.closest && sel.closest('form')) continue;
           var rawStbl   = findTableAfter(sel) || findTableOf(sel);
