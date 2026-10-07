@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rodeo CPT Tracker - MQJ4
 // @namespace    rodeo-iad.amazon.com
-// @version      1.42.1
+// @version      1.42.2
 // @description  Auto-captures work pool values at every CPT. Floating panel on Rodeo.
 // @match        *://rodeo-iad.amazon.com/*
 // @grant        GM_setValue
@@ -38,7 +38,7 @@ const POOL_GROUPS = {
   'Grand Total'            : ['row:Total'],
   'Pending Inventory'      : ['PendingInventoryBinding'],
   'Ready To Pick'          : ['ReadyToPick'],
-  'Late Assign'            : ['row:PPLateAssignCR', 'row:PPLateAssignOP'],
+  'Late Assign'            : ['section:PickingNotYetPicked:PPLateAssignCR', 'section:PickingNotYetPicked:PPLateAssignOP'],
   'Picking Not Yet Picked' : ['PickingNotYetPicked'],
   'Picking Picked'         : ['PickingPicked', 'PickingPickedRouting'],
   'In Progress'            : ['PickingPickedInProgress'],
@@ -603,16 +603,33 @@ function scanDOM(cptLabel) {
             for (var tniSec = 0; tniSec < sel.childNodes.length; tniSec++) {
               if (sel.childNodes[tniSec].nodeType === 3) ownTxtSec += sel.childNodes[tniSec].nodeValue;
             }
-            if (ownTxtSec.trim().toLowerCase() !== sSection) continue;
+            var strippedSecTxt = selSecTxt.replace(/^[\s+\-\u25b2\u25bc\u25ba\u25c4\u229e\u229f\u2295\u2296]+\s*/, '');
+            if (ownTxtSec.trim().toLowerCase() !== sSection && strippedSecTxt !== sSection) continue;
           }
           if (sel.tagName !== 'TH' && sel.children.length > 2) continue;
           if (sel.closest && sel.closest('#cpt-root')) continue;
           if (sel.closest && sel.closest('form')) continue;
-          var rawStbl  = findTableAfter(sel) || findTableOf(sel);
+          // Prefer parent table over sibling — findTableAfter can pick up an
+          // unrelated widget (e.g. break-scheduler) near the section heading.
+          var rawStbl  = findTableOf(sel) || findTableAfter(sel);
           if (!rawStbl) continue;
           var cleanStbl = rodeoTableClone(rawStbl);
           var stRows    = Array.from(cleanStbl.querySelectorAll('tr'));
-          for (var sr = 0; sr < stRows.length; sr++) {
+          // Bound row search to this section only — from heading row+1 to next TH.
+          var srStart = 0; var srEnd = stRows.length;
+          var origSRows = Array.from(rawStbl.rows);
+          for (var hri = 0; hri < origSRows.length; hri++) {
+            if (origSRows[hri].contains(sel)) {
+              srStart = hri + 1;
+              for (var eri = srStart; eri < stRows.length; eri++) {
+                var erc = stRows[eri].cells && stRows[eri].cells[0];
+                if (erc && erc.tagName === 'TH') { srEnd = eri; break; }
+              }
+              break;
+            }
+          }
+          var sIdx = usingTotal ? -1 : findCptColumn(cleanStbl, colTarget);
+          for (var sr = srStart; sr < srEnd; sr++) {
             var srCells = Array.from(stRows[sr].querySelectorAll('td, th'));
             if (!srCells.length) continue;
             if (srCells[0].textContent.trim() !== sRow) continue;
@@ -622,11 +639,10 @@ function scanDOM(cptLabel) {
                 if (!isNaN(sn) && sn >= 0) { byLabel[lbl] += sn; hits++; break; }
               }
             } else {
-              var sIdx = findCptColumn(cleanStbl, colTarget);
               if (sIdx >= 0 && srCells[sIdx]) {
                 var sn2 = cellNum(srCells[sIdx]);
                 if (!isNaN(sn2) && sn2 >= 0) { byLabel[lbl] += sn2; hits++; }
-                console.log('[CPT v1.40.0] "' + lbl + '" section=' + sSection + ' row=' + sRow + ' idx=' + sIdx + ' val=' + sn2);
+                console.log('[CPT v1.42.2] "' + lbl + '" section=' + sSection + ' row=' + sRow + ' idx=' + sIdx + ' val=' + sn2);
               }
             }
             break;
@@ -644,13 +660,18 @@ function scanDOM(cptLabel) {
         var text = el.textContent.trim().toLowerCase();
         // TH section-heading cells may have 1DC nested elements appended, inflating
         // textContent. Fall back to checking direct text nodes only for TH elements.
+        // Also strip leading expand/collapse buttons (e.g. '+ PickingNotYetPicked')
+        // that CaseView injects into TH cells — the '+' is a child element whose
+        // text leaks into textContent but is not a direct text node of the TH.
         if (text !== alias) {
           if (el.tagName !== 'TH') continue;
           var ownTxt = '';
           for (var tni = 0; tni < el.childNodes.length; tni++) {
             if (el.childNodes[tni].nodeType === 3) ownTxt += el.childNodes[tni].nodeValue;
           }
-          if (ownTxt.trim().toLowerCase() !== alias) continue;
+          // Strip leading expand/collapse indicator then try full textContent
+          var strippedTxt = text.replace(/^[\s+\-\u25b2\u25bc\u25ba\u25c4\u229e\u229f\u2295\u2296]+\s*/, '');
+          if (ownTxt.trim().toLowerCase() !== alias && strippedTxt !== alias) continue;
         }
         // Relax children limit for TH — 1DC may inject nested elements into section headings.
         if (el.tagName !== 'TH' && el.children.length > 2) continue;
@@ -876,18 +897,33 @@ function buildDebugReport() {
             for (var tniSec2 = 0; tniSec2 < sel.childNodes.length; tniSec2++) {
               if (sel.childNodes[tniSec2].nodeType === 3) ownTxtSec2 += sel.childNodes[tniSec2].nodeValue;
             }
-            if (ownTxtSec2.trim().toLowerCase() !== sSection) continue;
+            var strippedSecTxt2 = selSecTxt2.replace(/^[\s+\-\u25b2\u25bc\u25ba\u25c4\u229e\u229f\u2295\u2296]+\s*/, '');
+            if (ownTxtSec2.trim().toLowerCase() !== sSection && strippedSecTxt2 !== sSection) continue;
           }
           if (sel.tagName !== 'TH' && sel.children.length > 2) continue;
           if (sel.closest && sel.closest('#cpt-root')) continue;
           if (sel.closest && sel.closest('form')) continue;
-          var rawStbl   = findTableAfter(sel) || findTableOf(sel);
+          // Prefer parent table over sibling — mirrors scanDOM fix.
+          var rawStbl   = findTableOf(sel) || findTableAfter(sel);
           if (!rawStbl) continue;
           var cleanStbl = rodeoTableClone(rawStbl);
-          var sIdx      = findCptColumn(cleanStbl, colTarget);
           var stRows    = Array.from(cleanStbl.querySelectorAll('tr'));
+          // Bound row search to this section only.
+          var srStart = 0; var srEnd = stRows.length;
+          var origSRows = Array.from(rawStbl.rows);
+          for (var hri = 0; hri < origSRows.length; hri++) {
+            if (origSRows[hri].contains(sel)) {
+              srStart = hri + 1;
+              for (var eri = srStart; eri < stRows.length; eri++) {
+                var erc = stRows[eri].cells && stRows[eri].cells[0];
+                if (erc && erc.tagName === 'TH') { srEnd = eri; break; }
+              }
+              break;
+            }
+          }
+          var sIdx      = findCptColumn(cleanStbl, colTarget);
           var sVal      = null;
-          for (var sr = 0; sr < stRows.length; sr++) {
+          for (var sr = srStart; sr < srEnd; sr++) {
             var srCells = Array.from(stRows[sr].querySelectorAll('td, th'));
             if (!srCells.length) continue;
             if (srCells[0].textContent.trim() !== sRow) continue;
