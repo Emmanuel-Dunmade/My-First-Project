@@ -592,6 +592,38 @@ function scanDOM(cptLabel) {
         var sParts   = subPool.split(':');
         var sSection = sParts[1].toLowerCase();
         var sRow     = sParts[2];
+
+        // Prefer Rodeo's dedicated id="<SectionName>Table" — same rationale as
+        // the normal work-pool scan: a same-named heading can also appear on a
+        // merged overview table that has no per-process-path rows at all, which
+        // would otherwise silently resolve to "row not found" => 0.
+        var sIdTbl = document.getElementById(sParts[1] + 'Table');
+        if (sIdTbl) {
+          var sCleanIdTbl = rodeoTableClone(sIdTbl);
+          var sIdRows     = Array.from(sCleanIdTbl.querySelectorAll('tr'));
+          var sSectIdIdx  = usingTotal ? -1 : findCptColumn(sCleanIdTbl, colTarget);
+          var sIdDone     = false;
+          for (var sri = 0; sri < sIdRows.length; sri++) {
+            var sIdCells = Array.from(sIdRows[sri].querySelectorAll('td, th'));
+            if (!sIdCells.length) continue;
+            if (sIdCells[0].textContent.trim() !== sRow) continue;
+            if (usingTotal) {
+              for (var sic = 0; sic < sIdCells.length; sic++) {
+                var sin = cellNum(sIdCells[sic]);
+                if (!isNaN(sin) && sin >= 0) { byLabel[lbl] += sin; hits++; sIdDone = true; break; }
+              }
+            } else if (sSectIdIdx >= 0 && sIdCells[sSectIdIdx]) {
+              var sin2 = cellNum(sIdCells[sSectIdIdx]);
+              if (!isNaN(sin2) && sin2 >= 0) {
+                byLabel[lbl] += sin2; hits++; sIdDone = true;
+                console.log('[CPT v1.43.1] "' + lbl + '" section=' + sSection + ' #id-table row=' + sRow + ' idx=' + sSectIdIdx + ' val=' + sin2);
+              }
+            }
+            break;
+          }
+          if (sIdDone) return;
+        }
+
         for (var si = 0; si < allElements.length; si++) {
           var sel = allElements[si];
           var selSecTxt = sel.textContent.trim().toLowerCase();
