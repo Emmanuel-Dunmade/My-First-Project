@@ -655,6 +655,43 @@ function scanDOM(cptLabel) {
       // --- Normal work-pool section scan ---
       var alias = subPool.toLowerCase();
 
+      // Rodeo always renders each work pool's own detailed table with
+      // id="<PoolName>Table" (e.g. #PickingNotYetPickedTable), carrying a real
+      // grand-total row that sums every process-path row for that pool. The
+      // generic text/heading scan below can instead land on a merged overview
+      // table where the same pool appears as a single embedded TH row scoped
+      // to a narrower subset (e.g. only the "Prioritized" slice) — a real but
+      // much smaller number that silently passes validation. Try the direct,
+      // authoritative id-based table first and skip the heuristic entirely
+      // when it yields a value.
+      var idTbl = document.getElementById(subPool + 'Table');
+      if (idTbl) {
+        var cleanIdTbl  = rodeoTableClone(idTbl);
+        var idTotalRow  = findTotalRow(cleanIdTbl);
+        var idCells     = idTotalRow ? Array.from(idTotalRow.querySelectorAll('td, th')) : [];
+        var idDone      = false;
+        if (usingTotal) {
+          for (var ic = 0; ic < idCells.length; ic++) {
+            var inu = cellNum(idCells[ic]);
+            if (!isNaN(inu) && inu >= 0) {
+              byLabel[lbl] += inu; hits++; idDone = true;
+              console.log('[CPT v1.43.0] "' + lbl + '" sub=' + subPool + ' #id-table Total col' + ic + '=' + inu);
+              break;
+            }
+          }
+        } else {
+          var idColIdx = findCptColumn(cleanIdTbl, colTarget);
+          if (idColIdx >= 0 && idCells[idColIdx]) {
+            var idnc = cellNum(idCells[idColIdx]);
+            if (!isNaN(idnc) && idnc >= 0) {
+              byLabel[lbl] += idnc; hits++; idDone = true;
+              console.log('[CPT v1.43.0] "' + lbl + '" sub=' + subPool + ' #id-table col="' + colTarget + '" idx=' + idColIdx + ' val=' + idnc);
+            }
+          }
+        }
+        if (idDone) return;
+      }
+
       for (var i = 0; i < allElements.length; i++) {
         var el   = allElements[i];
         var text = el.textContent.trim().toLowerCase();
