@@ -718,6 +718,24 @@ function scanDOM(cptLabel) {
           if (/^planned/.test(ftHdr)) continue;
         }
 
+        // Guard against grabbing an unrelated widget (break-scheduler, filter
+        // sidebar, etc.) that happens to sit near a same-named heading. A real
+        // Rodeo work-pool table always has a header row containing a "Total"
+        // style column (Total / Earlier Total / Range Total). If none of the
+        // header-row cells look like that, this isn't the real section table —
+        // skip it and keep scanning for the next matching heading instead of
+        // silently reporting 0.
+        if (!embedded) {
+          var hdrRow0  = cleanTbl.rows[0] ? Array.from(cleanTbl.rows[0].cells) : [];
+          var looksReal = hdrRow0.some(function(c) {
+            return /\btotal\b/i.test(c.textContent.replace(/\s+/g, ' ').trim());
+          });
+          if (!looksReal) {
+            console.log('[CPT v1.42.2] "' + lbl + '" sub=' + subPool + ' rejected non-Rodeo table (no Total-style header), continuing scan');
+            continue;
+          }
+        }
+
         var totalRow = null;
         if (!embedded) {
           totalRow = findTotalRow(cleanTbl);
